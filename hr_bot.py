@@ -67,7 +67,7 @@ def load_handbook():
         for policy_file in policy_files:
             filepath = os.path.join(policies_dir, policy_file)
             try:
-                with open(filepath, 'r', encoding='utf-8') as f:
+                with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
                     handbook_content += f"\n\n{'='*80}\n"
                     handbook_content += f"FILE: {policy_file}\n"
                     handbook_content += f"{'='*80}\n\n"
@@ -139,7 +139,7 @@ class HRBot:
             
             # Get response from Claude
             response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-3-5-haiku-20241022",
                 max_tokens=1024,
                 system=SYSTEM_PROMPT,
                 messages=self.conversation_history[user_id]
@@ -227,8 +227,10 @@ def main():
     if not HAS_CLAUDE:
         logger.error("Claude client not initialized. Bot will not function properly.")
     
-    # Create application
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    # Create application with increased timeouts for reliability
+    from telegram.request import HTTPXRequest
+    request = HTTPXRequest(connect_timeout=30, read_timeout=30)
+    application = Application.builder().token(TELEGRAM_TOKEN).request(request).build()
     
     # Add handlers
     application.add_handler(CommandHandler("start", start))
