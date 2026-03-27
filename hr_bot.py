@@ -7,6 +7,8 @@ Uses Claude API to answer questions based on HR handbook
 import os
 import logging
 import sys
+import csv
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -117,6 +119,38 @@ When answering:
 - If there are exceptions or conditions, mention them
 """
 
+# Logging helper for CSV conversations
+def log_conversation(user_id: int, user_name: str, question: str, answer: str):
+    """Log conversation to monthly CSV file"""
+    try:
+        # Create logs directory if it doesn't exist
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+        
+        # Get current month for filename
+        month_str = datetime.now().strftime('%Y_%m')
+        log_file = f'logs/conversation_log_{month_str}.csv'
+        
+        # Check if file exists to determine if we need to write headers
+        file_exists = os.path.isfile(log_file)
+        
+        # Write to CSV
+        with open(log_file, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # Write header if new file
+            if not file_exists:
+                writer.writerow(['timestamp', 'user_id', 'user_name', 'question', 'answer'])
+            
+            # Write the conversation
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            writer.writerow([timestamp, user_id, user_name, question, answer])
+        
+        logger.info(f"Logged conversation for user {user_id} to {log_file}")
+    
+    except Exception as e:
+        logger.error(f"Error logging conversation: {e}")
+
 class HRBot:
     def __init__(self):
         self.conversation_history = {}
@@ -208,6 +242,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Get answer
     answer = hr_bot.get_answer(user_id, question)
+    
+    # Log conversation to CSV
+    log_conversation(user_id, user_name, question, answer)
     
     # Send answer
     await update.message.reply_text(answer)
