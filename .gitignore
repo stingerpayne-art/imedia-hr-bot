@@ -1,0 +1,9 @@
+bot_keys.txt
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.DS_Store
+venv/
+node_modules/
