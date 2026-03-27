@@ -42,7 +42,12 @@ if not TELEGRAM_TOKEN or not CLAUDE_API_KEY:
     raise ValueError("TELEGRAM_BOT_TOKEN and CLAUDE_API_KEY environment variables must be set")
 
 # Initialize Anthropic client
-client = Anthropic(api_key=CLAUDE_API_KEY)
+try:
+    client = Anthropic(api_key=CLAUDE_API_KEY)
+except TypeError:
+    # Fallback for older anthropic versions
+    import anthropic
+    client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 # Load handbook
 def load_handbook():
