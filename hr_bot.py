@@ -139,7 +139,7 @@ class HRBot:
             
             # Get response from Claude
             response = client.messages.create(
-                model="claude-3-7-sonnet-20250219",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=1024,
                 system=SYSTEM_PROMPT,
                 messages=self.conversation_history[user_id]
