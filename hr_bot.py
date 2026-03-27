@@ -173,7 +173,7 @@ class HRBot:
             
             # Get response from Claude
             response = client.messages.create(
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-4-5",
                 max_tokens=1024,
                 system=SYSTEM_PROMPT,
                 messages=self.conversation_history[user_id]
