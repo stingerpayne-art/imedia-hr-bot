@@ -6,11 +6,9 @@ Uses Claude API to answer questions based on HR handbook
 
 import os
 import logging
-from pathlib import Path
-from dotenv import load_dotenv
+import sys
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from anthropic import Anthropic
 
 # Configure logging
 logging.basicConfig(
@@ -39,17 +37,28 @@ if not TELEGRAM_TOKEN or not CLAUDE_API_KEY:
         pass
 
 if not TELEGRAM_TOKEN or not CLAUDE_API_KEY:
-    raise ValueError("TELEGRAM_BOT_TOKEN and CLAUDE_API_KEY environment variables must be set")
-
-# Initialize Anthropic client
-client = Anthropic(api_key=CLAUDE_API_KEY)
+    logger.error("TELEGRAM_BOT_TOKEN and CLAUDE_API_KEY environment variables must be set")
+    sys.exit(1)
 
 # Load handbook
 def load_handbook():
-    with open('/Users/stingerpayne2/.openclaw/workspace/handbook.txt', 'r') as f:
-        return f.read()
+    try:
+        with open('handbook.txt', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.warning("handbook.txt not found")
+        return "HR Handbook not available"
 
 HANDBOOK = load_handbook()
+
+# Import Claude client
+try:
+    from anthropic import Anthropic
+    client = Anthropic(api_key=CLAUDE_API_KEY)
+    HAS_CLAUDE = True
+except Exception as e:
+    logger.error(f"Failed to initialize Anthropic client: {e}")
+    HAS_CLAUDE = False
 
 # System prompt for Claude
 SYSTEM_PROMPT = f"""You are an HR assistant for iMedia, a digital media company. 
@@ -63,7 +72,7 @@ Here is the iMedia HR Handbook:
 
 Rules:
 1. Answer questions ONLY based on the handbook above
-2. If the question is not covered in the handbook, say: "I don't see this covered in the handbook. Please contact HR directly at [hr contact info]"
+2. If the question is not covered in the handbook, say: "I don't see this covered in the handbook. Please contact HR directly."
 3. Be helpful, clear, and professional
 4. If uncertain, acknowledge the uncertainty and suggest contacting HR
 5. For medical/legal questions, always recommend consulting HR or a professional
@@ -81,6 +90,9 @@ class HRBot:
     
     def get_answer(self, user_id: int, question: str) -> str:
         """Get answer from Claude based on handbook and question"""
+        if not HAS_CLAUDE:
+            return "Sorry, the Claude API is not properly configured. Please contact the administrator."
+        
         try:
             # Initialize conversation history for this user if needed
             if user_id not in self.conversation_history:
@@ -108,11 +120,15 @@ class HRBot:
                 "content": assistant_message
             })
             
+            # Keep only last 10 messages per user to save memory
+            if len(self.conversation_history[user_id]) > 20:
+                self.conversation_history[user_id] = self.conversation_history[user_id][-20:]
+            
             return assistant_message
         
         except Exception as e:
             logger.error(f"Error getting answer: {e}")
-            return "Sorry, I encountered an error. Please try again or contact HR directly."
+            return "Sorry, I encountered an error processing your question. Please try again or contact HR directly."
 
 # Initialize bot
 hr_bot = HRBot()
@@ -174,6 +190,9 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Start the bot"""
     logger.info("Starting iMedia HR Bot...")
+    
+    if not HAS_CLAUDE:
+        logger.error("Claude client not initialized. Bot will not function properly.")
     
     # Create application
     application = Application.builder().token(TELEGRAM_TOKEN).build()
