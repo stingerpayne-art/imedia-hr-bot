@@ -40,13 +40,46 @@ if not TELEGRAM_TOKEN or not CLAUDE_API_KEY:
     logger.error("TELEGRAM_BOT_TOKEN and CLAUDE_API_KEY environment variables must be set")
     sys.exit(1)
 
-# Load handbook
+# Load handbook from policies folder
 def load_handbook():
+    """Load all policy files from the policies folder"""
+    policies_dir = 'policies'
+    handbook_content = ""
+    
     try:
-        with open('handbook.txt', 'r') as f:
-            return f.read()
-    except FileNotFoundError:
-        logger.warning("handbook.txt not found")
+        # Check if policies folder exists
+        if not os.path.isdir(policies_dir):
+            logger.warning(f"{policies_dir} folder not found, falling back to handbook.txt")
+            try:
+                with open('handbook.txt', 'r') as f:
+                    return f.read()
+            except FileNotFoundError:
+                logger.warning("handbook.txt not found either")
+                return "HR Handbook not available"
+        
+        # Load all .txt files from policies folder in order
+        policy_files = sorted([f for f in os.listdir(policies_dir) if f.endswith('.txt')])
+        
+        if not policy_files:
+            logger.warning(f"No policy files found in {policies_dir}")
+            return "HR Handbook not available"
+        
+        for policy_file in policy_files:
+            filepath = os.path.join(policies_dir, policy_file)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    handbook_content += f"\n\n{'='*80}\n"
+                    handbook_content += f"FILE: {policy_file}\n"
+                    handbook_content += f"{'='*80}\n\n"
+                    handbook_content += f.read()
+                logger.info(f"Loaded policy file: {policy_file}")
+            except Exception as e:
+                logger.error(f"Error loading {policy_file}: {e}")
+        
+        return handbook_content if handbook_content else "HR Handbook not available"
+    
+    except Exception as e:
+        logger.error(f"Error loading handbook from policies folder: {e}")
         return "HR Handbook not available"
 
 HANDBOOK = load_handbook()
